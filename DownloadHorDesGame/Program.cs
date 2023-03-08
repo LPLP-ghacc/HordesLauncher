@@ -1,49 +1,43 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 
-public static class Program
+var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+var downloadUrl = new Uri(config["DownloadLink"]);
+var savePath = Environment.CurrentDirectory + Path.DirectorySeparatorChar + config["DownloadFolder"];
+var saveFileName = Environment.CurrentDirectory + Path.DirectorySeparatorChar + config["DownloadName"];
+
+var executionName = savePath + Path.DirectorySeparatorChar + "Horizontal Descent.exe";
+
+Console.Title = "HorDes Downloader";
+Console.WriteLine("Downloading the game...");
+
+using (var client = new WebClient())
 {
-    public static void Main(string[] args)
+    client.DownloadProgressChanged += (sender, e) =>
     {
-        Console.Title = "HORIZONTAL DESCENT LAUNCHER";
+        Console.Write($"\rProgress: {e.ProgressPercentage}%\t{e.BytesReceived} / {e.TotalBytesToReceive} bytes");
+    };
 
-        Console.Title = "HorDes Downloader";
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("START DOWNLOAD...");
-
-        WebClient client = new WebClient();
-
-        NewMesssage("DOWNLOADING NOW...");
-
-        client.DownloadFile(new Uri("https://www.dropbox.com/s/0aykaxz1f426bgi/Game.zip?dl=1"), Environment.CurrentDirectory + "/GAME.zip");
-
-        NewMesssage("UNPACK ZIP FILE...");
-
-        if (Directory.Exists(Environment.CurrentDirectory + "/GAME"))
-            Directory.Delete(Environment.CurrentDirectory + "/GAME");
-
-        ZipFile.ExtractToDirectory(Environment.CurrentDirectory + "/GAME.zip", Environment.CurrentDirectory + "/GAME");
-
-        File.Delete(Environment.CurrentDirectory + "/GAME.zip");
-
-        NewMesssage("DOWNLOAD COMPLETE \n WANNA PLAY NOW? (Y/N)");
-
-        var input = Console.ReadLine();
-
-        if (input?.ToLower() == "y")
-            Process.Start(Environment.CurrentDirectory + "/GAME/Horizontal Descent.exe");
-
-        Environment.Exit(0);
-    }
-
-    private static void NewMesssage(string message)
+    client.DownloadFileCompleted += (a, b) =>
     {
-        Console.Clear();
-        Random rnd = new();
-        Console.ForegroundColor = (ConsoleColor)rnd.Next(1, 14);
-        Console.WriteLine(message);
-    }
+        Console.WriteLine("\nDownload completed.");
+    };
+
+    await client.DownloadFileTaskAsync(downloadUrl, saveFileName);
 }
 
+if (Directory.Exists(savePath))
+    Directory.Delete(savePath);
 
+ZipFile.ExtractToDirectory(saveFileName, savePath);
+File.Delete(saveFileName);
+
+Console.WriteLine("Wanna play? (Yes -> Enter, No -> Alt + F4)");
+var th = Console.ReadLine();
+
+Process.Start(savePath + Path.DirectorySeparatorChar + "Horizontal Descent.exe");
